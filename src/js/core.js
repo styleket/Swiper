@@ -2095,7 +2095,7 @@ s.disconnectObservers = function () {
 // Create looped slides
 s.createLoop = function () {
     // Remove duplicated slides
-    s.wrapper.children('.' + s.params.slideClass + '.' + s.params.slideDuplicateClass).remove();
+    // s.wrapper.children('.' + s.params.slideClass + '.' + s.params.slideDuplicateClass).remove();
 
     var slides = s.wrapper.children('.' + s.params.slideClass);
 
@@ -2106,7 +2106,7 @@ s.createLoop = function () {
     if (s.loopedSlides > slides.length) {
         s.loopedSlides = slides.length;
     }
-
+    /*
     var prependSlides = [], appendSlides = [], i;
     slides.each(function (index, el) {
         var slide = $(this);
@@ -2120,10 +2120,14 @@ s.createLoop = function () {
     for (i = prependSlides.length - 1; i >= 0; i--) {
         s.wrapper.prepend($(prependSlides[i].cloneNode(true)).addClass(s.params.slideDuplicateClass));
     }
+    */
 };
 s.destroyLoop = function () {
+    console.warn('Swiper.destroypLoop disabled with React');
+    /*
     s.wrapper.children('.' + s.params.slideClass + '.' + s.params.slideDuplicateClass).remove();
     s.slides.removeAttr('data-swiper-slide-index');
+    */
 };
 s.fixLoop = function () {
     var newIndex;
@@ -2144,6 +2148,8 @@ s.fixLoop = function () {
   Append/Prepend/Remove Slides
   ===========================*/
 s.appendSlide = function (slides) {
+    console.warn('Swiper.appendSlide disabled with React');
+    /*
     if (s.params.loop) {
         s.destroyLoop();
     }
@@ -2161,8 +2167,11 @@ s.appendSlide = function (slides) {
     if (!(s.params.observer && s.support.observer)) {
         s.update(true);
     }
+    */
 };
 s.prependSlide = function (slides) {
+    console.warn('Swiper.prependSlide disabled with React');
+    /*
     if (s.params.loop) {
         s.destroyLoop();
     }
@@ -2183,8 +2192,11 @@ s.prependSlide = function (slides) {
         s.update(true);
     }
     s.slideTo(newActiveIndex, 0, false);
+    */
 };
 s.removeSlide = function (slidesIndexes) {
+    console.warn('Swiper.removeSlide disabled with React');
+    /*
     if (s.params.loop) {
         s.destroyLoop();
         s.slides = s.wrapper.children('.' + s.params.slideClass);
@@ -2219,12 +2231,15 @@ s.removeSlide = function (slidesIndexes) {
     else {
         s.slideTo(newActiveIndex, 0, false);
     }
-
+    */
 };
 s.removeAllSlides = function () {
+    console.warn('Swiper.removeAllSlide disabled with React');
+    /*
     var slidesIndexes = [];
     for (var i = 0; i < s.slides.length; i++) {
         slidesIndexes.push(i);
     }
     s.removeSlide(slidesIndexes);
+    */
 };
