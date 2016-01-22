@@ -6,6 +6,7 @@ var defaults = {
     // autoplay
     autoplay: false,
     autoplayDisableOnInteraction: true,
+    autoplayStopOnLast: false,
     // To support iOS's swipe-to-go-back gesture (when being used in-app, with UIWebView).
     iOSEdgeSwipeDetection: false,
     iOSEdgeSwipeThreshold: 20,
@@ -24,13 +25,17 @@ var defaults = {
     // Virtual Translate
     virtualTranslate: false,
     // Effects
-    effect: 'slide', // 'slide' or 'fade' or 'cube' or 'coverflow'
+    effect: 'slide', // 'slide' or 'fade' or 'cube' or 'coverflow' or 'flip'
     coverflow: {
         rotate: 50,
         stretch: 0,
         depth: 100,
         modifier: 1,
         slideShadows : true
+    },
+    flip: {
+        slideShadows : true,
+        limitRotation: true
     },
     cube: {
         slideShadows: true,
@@ -88,6 +93,10 @@ var defaults = {
     paginationClickable: false,
     paginationHide: false,
     paginationBulletRender: null,
+    paginationProgressRender: null,
+    paginationFractionRender: null,
+    paginationCustomRender: null,
+    paginationType: 'bullets', // 'bullets' or 'progress' or 'fraction' or 'custom'
     // Resistance
     resistance: true,
     resistanceRatio: 0.85,
@@ -106,6 +115,7 @@ var defaults = {
     // Lazy Loading
     lazyLoading: false,
     lazyLoadingInPrevNext: false,
+    lazyLoadingInPrevNextAmount: 1,
     lazyLoadingOnTransitionStart: false,
     // Images
     preloadImages: true,
@@ -135,7 +145,10 @@ var defaults = {
     bulletClass: 'swiper-pagination-bullet',
     bulletActiveClass: 'swiper-pagination-bullet-active',
     buttonDisabledClass: 'swiper-button-disabled',
+    paginationCurrentClass: 'swiper-pagination-current',
+    paginationTotalClass: 'swiper-pagination-total',
     paginationHiddenClass: 'swiper-pagination-hidden',
+    paginationProgressbarClass: 'swiper-pagination-progressbar',
     // Observer
     observer: false,
     observeParents: false,
@@ -306,7 +319,7 @@ if (s.params.parallax || s.params.watchSlidesVisibility) {
     s.params.watchSlidesProgress = true;
 }
 // Coverflow / 3D
-if (['cube', 'coverflow'].indexOf(s.params.effect) >= 0) {
+if (['cube', 'coverflow', 'flip'].indexOf(s.params.effect) >= 0) {
     if (s.support.transforms3d) {
         s.params.watchSlidesProgress = true;
         s.classNames.push('swiper-container-3d');
@@ -328,12 +341,13 @@ if (s.params.effect === 'cube') {
     s.params.virtualTranslate = true;
     s.params.setWrapperSize = false;
 }
-if (s.params.effect === 'fade') {
+if (s.params.effect === 'fade' || s.params.effect === 'flip') {
     s.params.slidesPerView = 1;
     s.params.slidesPerColumn = 1;
     s.params.slidesPerGroup = 1;
     s.params.watchSlidesProgress = true;
     s.params.spaceBetween = 0;
+    s.params.setWrapperSize = false;
     if (typeof initialVirtualTranslate === 'undefined') {
         s.params.virtualTranslate = true;
     }
@@ -350,18 +364,23 @@ s.wrapper = s.container.children('.' + s.params.wrapperClass);
 // Pagination
 if (s.params.pagination) {
     s.paginationContainer = $(s.params.pagination);
-    if (s.params.paginationClickable) {
+    if (s.params.paginationType === 'bullets' && s.params.paginationClickable) {
         s.paginationContainer.addClass('swiper-pagination-clickable');
     }
+    else {
+        s.params.paginationClickable = false;
+    }
+    s.paginationContainer.addClass('swiper-pagination-' + s.params.paginationType);
 }
 
 // Is Horizontal
-function isH() {
+s.isHorizontal = function () {
     return s.params.direction === 'horizontal';
-}
+};
+// s.isH = isH;
 
 // RTL
-s.rtl = isH() && (s.container[0].dir.toLowerCase() === 'rtl' || s.container.css('direction') === 'rtl');
+s.rtl = s.isHorizontal() && (s.container[0].dir.toLowerCase() === 'rtl' || s.container.css('direction') === 'rtl');
 if (s.rtl) {
     s.classNames.push('swiper-container-rtl');
 }
@@ -486,14 +505,17 @@ function autoplay() {
         if (s.params.loop) {
             s.fixLoop();
             s._slideNext();
+            s.emit('onAutoplay', s);
         }
         else {
             if (!s.isEnd) {
                 s._slideNext();
+                s.emit('onAutoplay', s);
             }
             else {
                 if (!params.autoplayStopOnLast) {
                     s._slideTo(0);
+                    s.emit('onAutoplay', s);
                 }
                 else {
                     s.stopAutoplay();
@@ -552,8 +574,11 @@ s.maxTranslate = function () {
   ===========================*/
 s.updateAutoHeight = function () {
     // Update Height
-    var newHeight = s.slides.eq(s.activeIndex)[0].offsetHeight;
-    if (newHeight) s.wrapper.css('height', s.slides.eq(s.activeIndex)[0].offsetHeight + 'px');
+    var slide = s.slides.eq(s.activeIndex)[0];
+    if (typeof slide !== 'undefined') {
+        var newHeight = slide.offsetHeight;
+        if (newHeight) s.wrapper.css('height', newHeight + 'px');
+    }
 };
 s.updateContainerSize = function () {
     var width, height;
@@ -569,7 +594,7 @@ s.updateContainerSize = function () {
     else {
         height = s.container[0].clientHeight;
     }
-    if (width === 0 && isH() || height === 0 && !isH()) {
+    if (width === 0 && s.isHorizontal() || height === 0 && !s.isHorizontal()) {
         return;
     }
 
@@ -580,7 +605,7 @@ s.updateContainerSize = function () {
     // Store values
     s.width = width;
     s.height = height;
-    s.size = isH() ? s.width : s.height;
+    s.size = s.isHorizontal() ? s.width : s.height;
 };
 
 s.updateSlidesSize = function () {
@@ -661,14 +686,14 @@ s.updateSlidesSize = function () {
         }
         if (slide.css('display') === 'none') continue;
         if (s.params.slidesPerView === 'auto') {
-            slideSize = isH() ? slide.outerWidth(true) : slide.outerHeight(true);
+            slideSize = s.isHorizontal() ? slide.outerWidth(true) : slide.outerHeight(true);
             if (s.params.roundLengths) slideSize = round(slideSize);
         }
         else {
             slideSize = (s.size - (s.params.slidesPerView - 1) * spaceBetween) / s.params.slidesPerView;
             if (s.params.roundLengths) slideSize = round(slideSize);
 
-            if (isH()) {
+            if (s.isHorizontal()) {
                 s.slides[i].style.width = slideSize + 'px';
             }
             else {
@@ -706,7 +731,7 @@ s.updateSlidesSize = function () {
         s.wrapper.css({width: s.virtualSize + s.params.spaceBetween + 'px'});
     }
     if (!s.support.flexbox || s.params.setWrapperSize) {
-        if (isH()) s.wrapper.css({width: s.virtualSize + s.params.spaceBetween + 'px'});
+        if (s.isHorizontal()) s.wrapper.css({width: s.virtualSize + s.params.spaceBetween + 'px'});
         else s.wrapper.css({height: s.virtualSize + s.params.spaceBetween + 'px'});
     }
 
@@ -739,7 +764,7 @@ s.updateSlidesSize = function () {
     if (s.snapGrid.length === 0) s.snapGrid = [0];
 
     if (s.params.spaceBetween !== 0) {
-        if (isH()) {
+        if (s.isHorizontal()) {
             if (s.rtl) s.slides.css({marginLeft: spaceBetween + 'px'});
             else s.slides.css({marginRight: spaceBetween + 'px'});
         }
@@ -751,7 +776,7 @@ s.updateSlidesSize = function () {
 };
 s.updateSlidesOffset = function () {
     for (var i = 0; i < s.slides.length; i++) {
-        s.slides[i].swiperSlideOffset = isH() ? s.slides[i].offsetLeft : s.slides[i].offsetTop;
+        s.slides[i].swiperSlideOffset = s.isHorizontal() ? s.slides[i].offsetLeft : s.slides[i].offsetTop;
     }
 };
 
@@ -858,31 +883,54 @@ s.updateClasses = function () {
     activeSlide.prev('.' + s.params.slideClass).addClass(s.params.slidePrevClass);
 
     // Pagination
-    if (s.bullets && s.bullets.length > 0) {
-        s.bullets.removeClass(s.params.bulletActiveClass);
-        var bulletIndex;
+    if (s.paginationContainer && s.paginationContainer.length > 0) {
+        // Current/Total
+        var current,
+            total = s.params.loop ? Math.ceil((s.slides.length - s.loopedSlides * 2) / s.params.slidesPerGroup) : s.snapGrid.length;
         if (s.params.loop) {
-            bulletIndex = Math.ceil(s.activeIndex - s.loopedSlides)/s.params.slidesPerGroup;
-            if (bulletIndex > s.slides.length - 1 - s.loopedSlides * 2) {
-                bulletIndex = bulletIndex - (s.slides.length - s.loopedSlides * 2);
+            current = Math.ceil(s.activeIndex - s.loopedSlides)/s.params.slidesPerGroup;
+            if (current > s.slides.length - 1 - s.loopedSlides * 2) {
+                current = current - (s.slides.length - s.loopedSlides * 2);
             }
-            if (bulletIndex > s.bullets.length - 1) bulletIndex = bulletIndex - s.bullets.length;
+            if (current > total - 1) current = current - total;
+            if (current < 0 && s.params.paginationType !== 'bullets') current = total + current;
         }
         else {
             if (typeof s.snapIndex !== 'undefined') {
-                bulletIndex = s.snapIndex;
+                current = s.snapIndex;
             }
             else {
-                bulletIndex = s.activeIndex || 0;
+                current = s.activeIndex || 0;
             }
         }
-        if (s.paginationContainer.length > 1) {
-            s.bullets.each(function () {
-                if ($(this).index() === bulletIndex) $(this).addClass(s.params.bulletActiveClass);
-            });
+        // Types
+        if (s.params.paginationType === 'bullets' && s.bullets && s.bullets.length > 0) {
+            s.bullets.removeClass(s.params.bulletActiveClass);
+            if (s.paginationContainer.length > 1) {
+                s.bullets.each(function () {
+                    if ($(this).index() === current) $(this).addClass(s.params.bulletActiveClass);
+                });
+            }
+            else {
+                s.bullets.eq(current).addClass(s.params.bulletActiveClass);
+            }
         }
-        else {
-            s.bullets.eq(bulletIndex).addClass(s.params.bulletActiveClass);
+        if (s.params.paginationType === 'fraction') {
+            s.paginationContainer.find('.' + s.params.paginationCurrentClass).text(current + 1);
+            s.paginationContainer.find('.' + s.params.paginationTotalClass).text(total);
+        }
+        if (s.params.paginationType === 'progress') {
+            var scale = (current + 1) / total,
+                scaleX = scale,
+                scaleY = 1;
+            if (!s.isHorizontal()) {
+                scaleY = scale;
+                scaleX = 1;
+            }
+            s.paginationContainer.find('.' + s.params.paginationProgressbarClass).transform('translate3d(0,0,0) scaleX(' + scaleX + ') scaleY(' + scaleY + ')').transition(s.params.speed);
+        }
+        if (s.params.paginationType === 'custom' && s.params.paginationCustomRender) {
+            s.paginationContainer.html(s.params.paginationCustomRender(s, current + 1, total));
         }
     }
 
@@ -917,20 +965,43 @@ s.updateClasses = function () {
 s.updatePagination = function () {
     if (!s.params.pagination) return;
     if (s.paginationContainer && s.paginationContainer.length > 0) {
-        var bulletsHTML = '';
-        var numberOfBullets = s.params.loop ? Math.ceil((s.slides.length - s.loopedSlides * 2) / s.params.slidesPerGroup) : s.snapGrid.length;
-        for (var i = 0; i < numberOfBullets; i++) {
-            if (s.params.paginationBulletRender) {
-                bulletsHTML += s.params.paginationBulletRender(i, s.params.bulletClass);
+        var paginationHTML = '';
+        if (s.params.paginationType === 'bullets') {
+            var numberOfBullets = s.params.loop ? Math.ceil((s.slides.length - s.loopedSlides * 2) / s.params.slidesPerGroup) : s.snapGrid.length;
+            for (var i = 0; i < numberOfBullets; i++) {
+                if (s.params.paginationBulletRender) {
+                    paginationHTML += s.params.paginationBulletRender(i, s.params.bulletClass);
+                }
+                else {
+                    paginationHTML += '<' + s.params.paginationElement+' class="' + s.params.bulletClass + '"></' + s.params.paginationElement + '>';
+                }
             }
-            else {
-                bulletsHTML += '<' + s.params.paginationElement+' class="' + s.params.bulletClass + '"></' + s.params.paginationElement + '>';
+            s.paginationContainer.html(paginationHTML);
+            s.bullets = s.paginationContainer.find('.' + s.params.bulletClass);
+            if (s.params.paginationClickable && s.params.a11y && s.a11y) {
+                s.a11y.initPagination();
             }
         }
-        s.paginationContainer.html(bulletsHTML);
-        s.bullets = s.paginationContainer.find('.' + s.params.bulletClass);
-        if (s.params.paginationClickable && s.params.a11y && s.a11y) {
-            s.a11y.initPagination();
+        if (s.params.paginationType === 'fraction') {
+            if (s.params.paginationFractionRender) {
+                paginationHTML = s.params.paginationFractionRender(s, s.params.paginationCurrentClass, s.params.paginationTotalClass);
+            }
+            else {
+                paginationHTML =
+                    '<span class="' + s.params.paginationCurrentClass + '"></span>' +
+                    ' / ' +
+                    '<span class="' + s.params.paginationTotalClass+'"></span>';
+            }
+            s.paginationContainer.html(paginationHTML);
+        }
+        if (s.params.paginationType === 'progress') {
+            if (s.params.paginationProgressRender) {
+                paginationHTML = s.params.paginationProgressRender(s, s.params.paginationProgressbarClass);
+            }
+            else {
+                paginationHTML = '<span class="' + s.params.paginationProgressbarClass + '"></span>';
+            }
+            s.paginationContainer.html(paginationHTML);
         }
     }
 };
@@ -1317,7 +1388,7 @@ s.onTouchMove = function (e) {
 
     if (typeof isScrolling === 'undefined') {
         var touchAngle = Math.atan2(Math.abs(s.touches.currentY - s.touches.startY), Math.abs(s.touches.currentX - s.touches.startX)) * 180 / Math.PI;
-        isScrolling = isH() ? touchAngle > s.params.touchAngle : (90 - touchAngle > s.params.touchAngle);
+        isScrolling = s.isHorizontal() ? touchAngle > s.params.touchAngle : (90 - touchAngle > s.params.touchAngle);
     }
     if (isScrolling) {
         s.emit('onTouchMoveOpposite', s, e);
@@ -1370,7 +1441,7 @@ s.onTouchMove = function (e) {
     }
     isMoved = true;
 
-    var diff = s.touches.diff = isH() ? s.touches.currentX - s.touches.startX : s.touches.currentY - s.touches.startY;
+    var diff = s.touches.diff = s.isHorizontal() ? s.touches.currentX - s.touches.startX : s.touches.currentY - s.touches.startY;
 
     diff = diff * s.params.touchRatio;
     if (s.rtl) diff = -diff;
@@ -1410,7 +1481,7 @@ s.onTouchMove = function (e) {
                 s.touches.startX = s.touches.currentX;
                 s.touches.startY = s.touches.currentY;
                 currentTranslate = startTranslate;
-                s.touches.diff = isH() ? s.touches.currentX - s.touches.startX : s.touches.currentY - s.touches.startY;
+                s.touches.diff = s.isHorizontal() ? s.touches.currentX - s.touches.startX : s.touches.currentY - s.touches.startY;
                 return;
             }
         }
@@ -1427,12 +1498,12 @@ s.onTouchMove = function (e) {
         //Velocity
         if (velocities.length === 0) {
             velocities.push({
-                position: s.touches[isH() ? 'startX' : 'startY'],
+                position: s.touches[s.isHorizontal() ? 'startX' : 'startY'],
                 time: touchStartTime
             });
         }
         velocities.push({
-            position: s.touches[isH() ? 'currentX' : 'currentY'],
+            position: s.touches[s.isHorizontal() ? 'currentX' : 'currentY'],
             time: (new window.Date()).getTime()
         });
     }
@@ -1866,7 +1937,7 @@ s.setWrapperTransition = function (duration, byController) {
 };
 s.setWrapperTranslate = function (translate, updateActiveIndex, byController) {
     var x = 0, y = 0, z = 0;
-    if (isH()) {
+    if (s.isHorizontal()) {
         x = s.rtl ? -translate : translate;
     }
     else {
@@ -1883,7 +1954,7 @@ s.setWrapperTranslate = function (translate, updateActiveIndex, byController) {
         else s.wrapper.transform('translate(' + x + 'px, ' + y + 'px)');
     }
 
-    s.translate = isH() ? x : y;
+    s.translate = s.isHorizontal() ? x : y;
 
     // Check if we need to update progress
     var progress;
@@ -1970,7 +2041,7 @@ s.getTranslate = function (el, axis) {
 };
 s.getWrapperTranslate = function (axis) {
     if (typeof axis === 'undefined') {
-        axis = isH() ? 'x' : 'y';
+        axis = s.isHorizontal() ? 'x' : 'y';
     }
     return s.getTranslate(s.wrapper[0], axis);
 };
