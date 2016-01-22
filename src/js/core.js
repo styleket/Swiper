@@ -2124,7 +2124,6 @@ s.createLoop = function () {
 };
 s.destroyLoop = function () {
     // Suppresing warning
-    // console.warn('Swiper.destroypLoop disabled with React');
     /*
     s.wrapper.children('.' + s.params.slideClass + '.' + s.params.slideDuplicateClass).remove();
     s.slides.removeAttr('data-swiper-slide-index');
