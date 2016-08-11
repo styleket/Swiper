@@ -247,10 +247,9 @@ var Dom7 = (function () {
         trigger: function (eventName, eventData) {
             for (var i = 0; i < this.length; i++) {
                 var evt;
-                try {
+                if (typeof window.CustomEvent === 'function') {
                     evt = new window.CustomEvent(eventName, {detail: eventData, bubbles: true, cancelable: true});
-                }
-                catch (e) {
+                } else {
                     evt = document.createEvent('Event');
                     evt.initEvent(eventName, true, true);
                     evt.detail = eventData;

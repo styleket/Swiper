@@ -6,16 +6,8 @@ s.mousewheel = {
     lastScrollTime: (new window.Date()).getTime()
 };
 if (s.params.mousewheelControl) {
-    try {
-        new window.WheelEvent('wheel');
+    if (typeof window.WheelEvent === 'function' || (s.container[0] && 'wheel' in s.container[0])) {
         s.mousewheel.event = 'wheel';
-    } catch (e) {
-        if (window.WheelEvent || (s.container[0] && 'wheel' in s.container[0])) {
-            s.mousewheel.event = 'wheel';
-        }
-    }
-    if (!s.mousewheel.event && window.WheelEvent) {
-
     }
     if (!s.mousewheel.event && document.onmousewheel !== undefined) {
         s.mousewheel.event = 'mousewheel';

@@ -10,7 +10,7 @@
  * 
  * Licensed under MIT
  * 
- * Released on: August 10, 2016
+ * Released on: August 11, 2016
  */
 (function () {
     'use strict';
@@ -3166,16 +3166,8 @@
             lastScrollTime: (new window.Date()).getTime()
         };
         if (s.params.mousewheelControl) {
-            try {
-                new window.WheelEvent('wheel');
+            if (typeof window.WheelEvent === 'function' || (s.container[0] && 'wheel' in s.container[0])) {
                 s.mousewheel.event = 'wheel';
-            } catch (e) {
-                if (window.WheelEvent || (s.container[0] && 'wheel' in s.container[0])) {
-                    s.mousewheel.event = 'wheel';
-                }
-            }
-            if (!s.mousewheel.event && window.WheelEvent) {
-        
             }
             if (!s.mousewheel.event && document.onmousewheel !== undefined) {
                 s.mousewheel.event = 'mousewheel';
@@ -3985,10 +3977,9 @@
             trigger: function (eventName, eventData) {
                 for (var i = 0; i < this.length; i++) {
                     var evt;
-                    try {
+                    if (typeof window.CustomEvent === 'function') {
                         evt = new window.CustomEvent(eventName, {detail: eventData, bubbles: true, cancelable: true});
-                    }
-                    catch (e) {
+                    } else {
                         evt = document.createEvent('Event');
                         evt.initEvent(eventName, true, true);
                         evt.detail = eventData;
