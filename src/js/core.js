@@ -507,7 +507,10 @@ s.imagesLoaded = 0;
 s.loadImage = function (imgElement, src, srcset, checkForComplete, callback) {
     var image;
     function onReady () {
-        if (callback) callback();
+        if (s !== null) {
+          // onReady can be called after s.destroy()
+          if (callback) callback();
+        }
     }
     if (!imgElement.complete || !checkForComplete) {
         if (src) {
